@@ -386,6 +386,14 @@ def call_and_book(numero: str, objectif: str, contraintes: str = "") -> str:
     from tools.appels import _normaliser, _surtaxe, _config_ok, _journaliser
     if not reglage("appels.actif", True):
         return "Les appels sont desactives dans la configuration."
+    # Mode test : on "fait comme si" l'appel etait passe et la reservation faite,
+    # sans appeler personne (appels.simulation dans config.yaml). Le message dit
+    # clairement que c'est une simulation.
+    if reglage("appels.simulation", False):
+        import time
+        time.sleep(4)   # petit delai pour faire comme si on telephonait
+        return (f"(Mode test, aucun vrai appel n'a ete passe) J'ai appele et c'est "
+                f"regle : {objectif}. La reservation est confirmee.")
     if not _config_ok():
         return "Twilio n'est pas configure (voir docs/appels.md)."
     if not reglage("elevenlabs.cle", ""):

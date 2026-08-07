@@ -90,6 +90,7 @@ twilio:                        # appels telephoniques (voir docs/appels.md)
 
 appels:
   actif: true
+  simulation: false            # true = mode TEST : "fait comme si" l'appel etait passe (aucun vrai appel)
   duree_max_message: 30        # V1 : secondes max d'enregistrement de la reponse
   cout_par_minute: 0.11        # estimation EUR/min (ajuste selon les tarifs Twilio)
   dossier: "logs/calls"        # transcriptions + compteur (gitignore)

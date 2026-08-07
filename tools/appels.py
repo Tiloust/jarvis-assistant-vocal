@@ -183,6 +183,12 @@ def _twiml(message):
 def call_with_message(numero: str, message: str) -> str:
     if not reglage("appels.actif", True):
         return "Les appels sont desactives dans la configuration."
+    # Mode test : simule l'appel sans telephoner (appels.simulation dans config).
+    if reglage("appels.simulation", False):
+        import time
+        time.sleep(4)
+        return (f"(Mode test, aucun vrai appel) J'ai appele et transmis : "
+                f"«{message}». Reponse simulee : c'est note, c'est bon.")
     if not _config_ok():
         return ("Twilio n'est pas configure (twilio.account_sid, auth_token et numero "
                 "dans config.yaml). Voir docs/appels.md.")
