@@ -1,0 +1,32 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Secrets et donnees personnelles (ne JAMAIS versionner)
+config.yaml
+memoire.json
+memory.json
+google_credentials.json
+google_token.json
+notes/
+reminders.json
+
+# Journaux
+logs/
+
+# Profil navigateur persistant des reservations (cookies, sessions connectees)
+.profil_reservation/
+
+# Config locale de l'outil Claude Code (contient des chemins personnels)
+.claude/
+
+# Modeles de voix Piper : trop lourds pour GitHub, a retelecharger.
+# Voir README pour le lien de telechargement.
+voix/
