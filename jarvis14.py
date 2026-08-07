@@ -190,14 +190,19 @@ def _jouer_audio(audio, frequence):
         sd.stop()
 
 
-def dire(texte):
+def dire(texte, interruptible=True):
     """Prononce un texte via le provider TTS courant (ElevenLabs en cloud, Piper en
-    local) ; repli sur la voix Windows (SAPI) si le provider est indisponible."""
+    local) ; repli sur la voix Windows (SAPI) si le provider est indisponible.
+
+    interruptible=False : le barge-in est desactive pendant cette phrase (utilise
+    pour la question de confirmation : la reponse de l'utilisateur est un oui/non,
+    pas une interruption)."""
     if _INTERRUPTION.is_set():
         return
     from core.tts import tts
     resultat = tts().synthetiser(texte)
-    _PARLE.set()          # a partir d'ici Jarvis parle : on peut l'interrompre
+    if interruptible:
+        _PARLE.set()      # a partir d'ici Jarvis parle : on peut l'interrompre
     try:
         if resultat is not None:
             _jouer_audio(*resultat)
@@ -500,7 +505,7 @@ def repondre(historique):
                     fil_accuse.join()
                 _hud("etat", "parole")
                 if not _INTERRUPTION.is_set():
-                    dire(annonce + " Tu confirmes ?")
+                    dire(annonce + " Tu confirmes ?", interruptible=False)
                 return SENTINEL_CONFIRM
             continue
 
