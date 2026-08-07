@@ -37,6 +37,18 @@ def oui(question, defaut=True):
     return r in ("o", "oui", "y", "yes")
 
 
+def lire_cle(prompt):
+    """Lit une cle sans l'afficher (getpass) si on est dans un vrai terminal ;
+    sinon repli sur input() visible (evite tout blocage en non-interactif)."""
+    if sys.stdin.isatty():
+        try:
+            import getpass
+            return getpass.getpass(prompt).strip()
+        except Exception:
+            pass
+    return input(prompt).strip()
+
+
 # --------------------------------------------------------------- bootstrap
 
 def deps_presentes():
@@ -104,11 +116,10 @@ CLES_CLOUD = [
 
 def config_cloud(conf):
     dire_titre("Mode CLOUD — cles API")
-    import getpass
     conf["mode"] = "cloud"
     for section, champ, requis, libelle, lien in CLES_CLOUD:
         print(f"\n{libelle}\n  {lien}")
-        val = getpass.getpass("  colle la cle (laisse vide pour ignorer) : ").strip()
+        val = lire_cle("  colle la cle (laisse vide pour ignorer) : ")
         if val:
             conf.setdefault(section, {})[champ] = val
         elif requis:
