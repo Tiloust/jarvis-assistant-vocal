@@ -132,16 +132,56 @@ class PiperProvider(ProviderTTS):
             return None
 
 
+# --------------------------------------------------------------- Kokoro (local)
+
+class KokoroProvider(ProviderTTS):
+    nom = "Kokoro"
+
+    def __init__(self):
+        self.modele = reglage("kokoro.modele", "")
+        self.voix = reglage("kokoro.voix", "")
+        self.voix_nom = reglage("kokoro.voix_nom", "ff_siwis")
+        self._k = None
+
+    def disponible(self):
+        return bool(self.modele and Path(self.modele).exists())
+
+    def synthetiser(self, texte):
+        try:
+            import numpy as np
+            from kokoro_onnx import Kokoro
+        except ImportError:
+            print("  [Kokoro] librairie absente. Installe : uv add kokoro-onnx")
+            return None
+        if not (self.modele and Path(self.modele).exists()):
+            print("  [Kokoro] modele introuvable (kokoro.modele). Voir docs/local.md.")
+            return None
+        try:
+            if self._k is None:
+                self._k = Kokoro(self.modele, self.voix)
+            samples, freq = self._k.create(texte, voice=self.voix_nom, speed=1.0, lang="fr-fr")
+            audio = (np.asarray(samples) * 32767).astype(np.int16)
+            return audio, freq
+        except Exception as e:
+            print(f"  [Kokoro] echec ({e}), repli voix Windows.")
+            return None
+
+
 # --------------------------------------------------------------- fabrique
 
 _TTS = None
 
 
 def tts():
-    """Provider TTS courant (selon config.yaml mode: cloud|local)."""
+    """Provider TTS courant : cloud -> ElevenLabs ; local -> Piper ou Kokoro
+    (config voix_locale)."""
     global _TTS
     if _TTS is None:
         mode = (reglage("mode", "cloud") or "cloud").lower()
-        _TTS = PiperProvider() if mode == "local" else ElevenLabsProvider()
+        if mode == "local":
+            moteur = (reglage("voix_locale", "piper") or "piper").lower()
+            _TTS = KokoroProvider() if moteur == "kokoro" else PiperProvider()
+        else:
+            _TTS = ElevenLabsProvider()
         LOG.info("provider TTS : %s (mode %s)", _TTS.nom, mode)
     return _TTS

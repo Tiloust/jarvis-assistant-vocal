@@ -145,13 +145,22 @@ def v_voix():
     titre("Voix (TTS)")
     mode = reglage("mode", "cloud")
     if mode == "local":
-        modele = reglage("piper.modele", "")
-        voix_dir = list((RACINE / "voix").glob("*.onnx")) if (RACINE / "voix").exists() else []
-        if modele and Path(modele).exists() or voix_dir:
-            ok("voix Piper trouvee")
+        moteur = (reglage("voix_locale", "piper") or "piper").lower()
+        if moteur == "kokoro":
+            m = reglage("kokoro.modele", "")
+            if m and Path(m).exists():
+                ok("voix Kokoro trouvee")
+            else:
+                warn("Kokoro selectionne mais modele introuvable (kokoro.modele)",
+                     "voir docs/local.md ; sinon Jarvis parle avec la voix Windows.")
         else:
-            warn("aucune voix Piper (.onnx)", "telecharge une voix FR dans voix/ (voir docs/local.md). "
-                 "Sinon Jarvis parle avec la voix Windows.")
+            modele = reglage("piper.modele", "")
+            voix_dir = list((RACINE / "voix").glob("*.onnx")) if (RACINE / "voix").exists() else []
+            if modele and Path(modele).exists() or voix_dir:
+                ok("voix Piper trouvee")
+            else:
+                warn("aucune voix Piper (.onnx)", "telecharge une voix FR dans voix/ (voir "
+                     "docs/local.md). Sinon Jarvis parle avec la voix Windows.")
     else:
         if reglage("elevenlabs.cle", ""):
             ok("cle ElevenLabs presente")

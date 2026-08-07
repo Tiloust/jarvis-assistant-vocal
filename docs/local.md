@@ -87,4 +87,23 @@ clé `anthropic.cle`.
 Kokoro (`kokoro-onnx`) ne propose qu'**une** voix française récente, de qualité
 moyenne. **Piper** a plusieurs voix FR éprouvées (`fr_FR-siwis`, `fr_FR-tom`...), est
 ultra-léger et temps réel sur CPU, et est déjà intégré au projet. C'est le meilleur
-choix pour un TTS local français aujourd'hui — d'où le `PiperProvider` fourni.
+choix pour un TTS local français aujourd'hui — d'où le défaut `piper`.
+
+**Les deux sont disponibles au choix** (`voix_locale` dans `config.yaml`) :
+
+```yaml
+voix_locale: piper     # ou "kokoro"
+```
+
+Pour **Kokoro** : `uv add kokoro-onnx`, télécharge `kokoro-v1.0.onnx` et
+`voices-v1.0.bin` (dépôt kokoro-onnx sur GitHub/HuggingFace), puis :
+
+```yaml
+voix_locale: kokoro
+kokoro:
+  modele: "chemin/vers/kokoro-v1.0.onnx"
+  voix: "chemin/vers/voices-v1.0.bin"
+  voix_nom: "ff_siwis"   # voix française
+```
+
+Sans modèle configuré, Jarvis retombe sur la voix Windows (SAPI).

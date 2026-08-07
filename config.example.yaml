@@ -7,8 +7,15 @@ ollama:                        # mode local : modele de langage local (http://lo
   hote: "http://localhost:11434"
   modele: "qwen2.5:7b"         # doit gerer le function calling (qwen2.5:7b, llama3.1:8b...)
 
+voix_locale: piper             # mode local : "piper" (recommande FR) ou "kokoro"
+
 piper:                         # mode local : voix francaise Piper (voir docs/local.md)
   modele: ""                   # chemin d'un .onnx ; vide = 1er trouve dans voix/
+
+kokoro:                        # TTS local alternatif (voix FR unique ; uv add kokoro-onnx)
+  modele: ""                   # chemin de kokoro-v1.0.onnx
+  voix: ""                     # chemin de voices-v1.0.bin
+  voix_nom: "ff_siwis"         # voix francaise de Kokoro
 
 anthropic:
   cle: "sk-ant-..."            # https://console.anthropic.com/ , section API keys
