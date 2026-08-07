@@ -339,7 +339,7 @@ def book_appointment(site: str, quoi: str, quand: str, details: str = "") -> str
 
 
 def _annonce_validation(_args):
-    return f"Je vais valider la reservation : {_RESUME_RESA}. Tu confirmes ?"
+    return f"Je vais valider la reservation : {_RESUME_RESA}."
 
 
 @outil(

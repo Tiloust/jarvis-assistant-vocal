@@ -217,7 +217,7 @@ def _annonce_fermeture(args):
     filtre = args.get("filtre", "")
     n = _compter_onglets(filtre)
     quoi = f"les {n} onglets" if not filtre else f"{n} onglet(s) '{filtre}'"
-    return f"Je ferme {quoi}. Tu confirmes ?"
+    return f"Je ferme {quoi}."
 
 
 @outil(

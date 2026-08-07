@@ -341,7 +341,7 @@ def _prenom():
 def _annonce(args):
     return (f"Je vais appeler le {args.get('numero','')} pour : "
             f"{args.get('objectif','')}. Je me presenterai comme ton assistant "
-            "automatise et je n'engagerai que ce que tu as valide. Tu confirmes ?")
+            "automatise et je n'engagerai que ce que tu as valide.")
 
 
 def _twiml_stream(objectif, contraintes):

@@ -141,7 +141,7 @@ def _annonce(args):
     msg = args.get("message", "")
     est = _cout(1.0)
     return (f"Je vais appeler le {e164} et dire : «{msg}». Cout estime environ "
-            f"{est} euro par minute. Tu confirmes ?")
+            f"{est} euro par minute.")
 
 
 # ------------------------------------------------------------------ l'appel V1

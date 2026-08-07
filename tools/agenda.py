@@ -270,7 +270,7 @@ def _annonce_creation(args):
     debut = _combiner(args.get("date", ""), args.get("heure", ""))
     duree = args.get("duree_minutes", 60)
     return (f"Je vais ajouter : {args.get('titre','')} le {_jour_fr(debut)} a "
-            f"{_heure_fr(debut)} pour {duree} minutes. Tu confirmes ?")
+            f"{_heure_fr(debut)} pour {duree} minutes.")
 
 
 @outil(
@@ -338,14 +338,14 @@ def _annonce_suppression(args):
     except Exception:
         trouves = []
     if not trouves:
-        return "Je ne trouve aucun evenement correspondant. Tu confirmes quand meme ?"
+        return "Je ne trouve aucun evenement correspondant a supprimer."
     if len(trouves) > 1:
         titres = ", ".join(e.get("summary", "") for _, e, _, _ in trouves[:4])
         return f"Plusieurs evenements correspondent ({titres}). Precise lequel."
     _, e, role, _ = trouves[0]
     d, _tj = _debut_ev(e)
     quand = f" le {_jour_fr(d)} a {_heure_fr(d)}" if d else ""
-    return f"Je vais supprimer : {e.get('summary','')}{quand}. Tu confirmes ?"
+    return f"Je vais supprimer : {e.get('summary','')}{quand}."
 
 
 @outil(
