@@ -187,63 +187,11 @@ def couper_parole():
             pass
 
 
-_VOIX_ELEVEN = {}   # cache de l'ID de voix resolu
-
-
-def _resoudre_voix():
-    """ID de la voix ElevenLabs : celui configure, sinon la premiere du compte."""
-    if ELEVENLABS_VOIX:
-        return ELEVENLABS_VOIX
-    if _VOIX_ELEVEN.get("id"):
-        return _VOIX_ELEVEN["id"]
-    try:
-        requete = urllib.request.Request(
-            "https://api.elevenlabs.io/v1/voices",
-            headers={"xi-api-key": ELEVENLABS_CLE},
-        )
-        with urllib.request.urlopen(requete, timeout=6) as reponse:
-            d = json.loads(reponse.read().decode("utf-8"))
-        _VOIX_ELEVEN["id"] = d["voices"][0]["voice_id"]
-    except Exception:
-        _VOIX_ELEVEN["id"] = "21m00Tcm4TlvDq8ikWAM"   # voix par defaut (Rachel)
-    return _VOIX_ELEVEN["id"]
-
-
-def _dire_eleven(texte):
-    """Synthese ElevenLabs jouee sur le haut-parleur. Renvoie True si reussi."""
-    try:
-        import miniaudio
-    except ImportError:
-        return False
-
-    voix_id = _resoudre_voix()
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voix_id}"
-    corps = json.dumps({"text": texte, "model_id": MODELE_ELEVEN}).encode("utf-8")
-    requete = urllib.request.Request(url, data=corps, method="POST", headers={
-        "xi-api-key": ELEVENLABS_CLE,
-        "Content-Type": "application/json",
-        "Accept": "audio/mpeg",
-    })
-    try:
-        with urllib.request.urlopen(requete, timeout=15) as reponse:
-            mp3 = reponse.read()
-    except Exception as e:
-        print(f"  [ElevenLabs] indisponible ({e}), repli sur la voix Windows.")
-        return False
-
-    try:
-        decode = miniaudio.decode(
-            mp3, nchannels=1, sample_rate=24000,
-            output_format=miniaudio.SampleFormat.SIGNED16,
-        )
-        audio = np.frombuffer(decode.samples, dtype=np.int16)
-    except Exception as e:
-        print(f"  [ElevenLabs] decodage impossible ({e}).")
-        return False
-
+def _jouer_audio(audio, frequence):
+    """Joue un tableau int16 mono sur le haut-parleur, interruptible."""
     if _INTERRUPTION.is_set():
-        return True
-    sd.play(audio, samplerate=24000, device=HAUT_PARLEUR)
+        return
+    sd.play(audio, samplerate=frequence, device=HAUT_PARLEUR)
     while not _INTERRUPTION.is_set():
         courant = sd.get_stream()
         if courant is None or not courant.active:
@@ -251,14 +199,17 @@ def _dire_eleven(texte):
         time.sleep(0.03)
     if _INTERRUPTION.is_set():
         sd.stop()
-    return True
 
 
 def dire(texte):
-    """Prononce un texte : voix ElevenLabs si configuree, sinon voix Windows."""
+    """Prononce un texte via le provider TTS courant (ElevenLabs en cloud, Piper en
+    local) ; repli sur la voix Windows (SAPI) si le provider est indisponible."""
     if _INTERRUPTION.is_set():
         return
-    if ELEVENLABS_CLE and _dire_eleven(texte):
+    from core.tts import tts
+    resultat = tts().synthetiser(texte)
+    if resultat is not None:
+        _jouer_audio(*resultat)
         return
     _dire_sapi(texte)
 
@@ -508,7 +459,13 @@ def repondre(historique):
     les outils a confirmation, prononce l'annonce et renvoie SENTINEL_CONFIRM
     (la suite est geree par traiter, qui capture la reponse oui/non).
     """
-    if CLIENT is None:
+    from core.llm import llm
+    fournisseur = llm()
+    if not fournisseur.disponible():
+        mode = config.reglage("mode", "cloud")
+        if mode == "local":
+            return ("Le modele local (Ollama) n'est pas joignable. Verifie qu'Ollama "
+                    "tourne et que le modele est telecharge.")
         return "Ma cle Claude n'est pas configuree."
 
     fil_accuse = None
@@ -520,18 +477,13 @@ def repondre(historique):
                 fil_accuse.join(timeout=2)
             return ""
         try:
-            reponse = CLIENT.messages.create(
-                model=MODELE_CLAUDE,
-                max_tokens=1024,
-                system=[{"type": "text", "text": SYSTEME_COURANT,
-                         "cache_control": {"type": "ephemeral"}}],
-                messages=historique,
-                tools=registre.schemas_api(),
-            )
+            reponse = fournisseur.repondre(
+                SYSTEME_COURANT, historique,
+                registre.schemas_api(local_seulement=(fournisseur.nom == "Ollama")))
         except Exception as e:
-            print(f"  [Claude] erreur : {e}")
-            LOG.exception("appel Claude en echec")
-            return "Je n'arrive pas a joindre Claude pour le moment."
+            print(f"  [{fournisseur.nom}] erreur : {e}")
+            LOG.exception("appel LLM en echec")
+            return "Je n'arrive pas a joindre le modele pour le moment."
 
         if reponse.stop_reason == "tool_use":
             _hud("etat", "reflexion")
@@ -884,9 +836,17 @@ def main():
     from tools.instagram import demarrer_refresh_instagram
     demarrer_refresh_instagram()
 
-    if not CLE_ANTHROPIC:
-        print("ATTENTION : aucune cle Claude dans config.yaml (anthropic.cle). "
-              "L'assistant ne pourra pas repondre.")
+    from core.llm import llm
+    _fournisseur = llm()
+    print(f"Mode : {config.reglage('mode', 'cloud')} — LLM {_fournisseur.nom}, "
+          f"TTS {__import__('core.tts', fromlist=['tts']).tts().nom}.")
+    if not _fournisseur.disponible():
+        if config.reglage("mode", "cloud") == "local":
+            print("ATTENTION : Ollama injoignable. Lance 'ollama serve' et verifie le "
+                  "modele (config ollama.modele).")
+        else:
+            print("ATTENTION : aucune cle Claude dans config.yaml (anthropic.cle). "
+                  "L'assistant ne pourra pas repondre.")
 
     _hud("demarrer")
     _hud("config", MODELE_CLAUDE, f"whisper {MODELE_WHISPER}")

@@ -1,6 +1,15 @@
 # Configuration de Jarvis — copie ce fichier en config.yaml et mets tes valeurs.
 # config.yaml n'est PAS versionne (voir .gitignore) : tes secrets restent chez toi.
 
+mode: cloud                    # cloud = Claude + ElevenLabs ; local = Ollama + Piper (100% offline)
+
+ollama:                        # mode local : modele de langage local (http://localhost:11434)
+  hote: "http://localhost:11434"
+  modele: "qwen2.5:7b"         # doit gerer le function calling (qwen2.5:7b, llama3.1:8b...)
+
+piper:                         # mode local : voix francaise Piper (voir docs/local.md)
+  modele: ""                   # chemin d'un .onnx ; vide = 1er trouve dans voix/
+
 anthropic:
   cle: "sk-ant-..."            # https://console.anthropic.com/ , section API keys
   modele: "claude-haiku-4-5"

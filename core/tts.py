@@ -1,0 +1,147 @@
+"""Abstraction de la synthese vocale (TTS) : cloud ou local, meme interface.
+
+Chaque provider expose `synthetiser(texte)` qui renvoie (audio_int16, frequence)
+ou None. jarvis14 se charge de JOUER l'audio (avec sa gestion d'interruption) et
+retombe sur la voix Windows (SAPI) si le provider renvoie None.
+
+  - ElevenLabsProvider : cloud (qualite max), voix configurable.
+  - PiperProvider      : local, 100% offline, voix francaise Piper (.onnx).
+
+Choix par config.yaml (mode: cloud | local). En local sans modele Piper, ou en
+cloud sans cle ElevenLabs, on retombe proprement sur SAPI.
+
+Note honnete sur le TTS local francais : Piper est recommande (voix FR eprouvees
+comme fr_FR-siwis / fr_FR-tom, tres leger, temps reel sur CPU). Kokoro (kokoro-onnx)
+ne propose qu'une voix FR recente et de qualite moyenne ; Piper est un meilleur
+choix pour le francais aujourd'hui.
+"""
+import json
+import logging
+import urllib.request
+from pathlib import Path
+
+from core.config import reglage
+
+LOG = logging.getLogger("jarvis")
+_RACINE = Path(__file__).resolve().parent.parent
+
+
+class ProviderTTS:
+    nom = "?"
+
+    def disponible(self):
+        return True
+
+    def synthetiser(self, texte):
+        """Renvoie (numpy int16 mono, frequence_hz) ou None si indisponible."""
+        return None
+
+
+# --------------------------------------------------------------- ElevenLabs
+
+class ElevenLabsProvider(ProviderTTS):
+    nom = "ElevenLabs"
+
+    def __init__(self):
+        self.cle = reglage("elevenlabs.cle", "")
+        self.voix = reglage("elevenlabs.voix", "")
+        self.modele = reglage("elevenlabs.modele", "eleven_flash_v2_5")
+        self._voix_resolue = None
+
+    def disponible(self):
+        return bool(self.cle)
+
+    def _resoudre_voix(self):
+        if self.voix:
+            return self.voix
+        if self._voix_resolue:
+            return self._voix_resolue
+        try:
+            requete = urllib.request.Request(
+                "https://api.elevenlabs.io/v1/voices",
+                headers={"xi-api-key": self.cle})
+            with urllib.request.urlopen(requete, timeout=6) as reponse:
+                d = json.loads(reponse.read().decode("utf-8"))
+            self._voix_resolue = d["voices"][0]["voice_id"]
+        except Exception:
+            self._voix_resolue = "21m00Tcm4TlvDq8ikWAM"   # Rachel, par defaut
+        return self._voix_resolue
+
+    def synthetiser(self, texte):
+        try:
+            import miniaudio
+            import numpy as np
+        except ImportError:
+            return None
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{self._resoudre_voix()}"
+        corps = json.dumps({"text": texte, "model_id": self.modele}).encode("utf-8")
+        requete = urllib.request.Request(url, data=corps, method="POST", headers={
+            "xi-api-key": self.cle, "Content-Type": "application/json",
+            "Accept": "audio/mpeg"})
+        try:
+            with urllib.request.urlopen(requete, timeout=15) as reponse:
+                mp3 = reponse.read()
+            decode = miniaudio.decode(
+                mp3, nchannels=1, sample_rate=24000,
+                output_format=miniaudio.SampleFormat.SIGNED16)
+            return np.frombuffer(decode.samples, dtype=np.int16), 24000
+        except Exception as e:
+            print(f"  [ElevenLabs] indisponible ({e}), repli voix Windows.")
+            return None
+
+
+# --------------------------------------------------------------- Piper (local)
+
+class PiperProvider(ProviderTTS):
+    nom = "Piper"
+
+    def __init__(self):
+        self.modele = reglage("piper.modele", "")
+        self._voix = None
+
+    def _chemin(self):
+        if not self.modele:
+            # a defaut, prend le premier .onnx trouve dans voix/
+            trouves = list((_RACINE / "voix").glob("*.onnx"))
+            return trouves[0] if trouves else None
+        p = Path(self.modele)
+        return p if p.is_absolute() else (_RACINE / p)
+
+    def disponible(self):
+        c = self._chemin()
+        return bool(c and c.exists())
+
+    def synthetiser(self, texte):
+        try:
+            import numpy as np
+            from piper import PiperVoice
+        except ImportError:
+            print("  [Piper] librairie piper-tts absente.")
+            return None
+        chemin = self._chemin()
+        if chemin is None or not chemin.exists():
+            print("  [Piper] aucun modele de voix (.onnx) dans voix/. Voir docs.")
+            return None
+        try:
+            if self._voix is None:
+                self._voix = PiperVoice.load(str(chemin))
+            brut = b"".join(self._voix.synthesize_stream_raw(texte))
+            return np.frombuffer(brut, dtype=np.int16), self._voix.config.sample_rate
+        except Exception as e:
+            print(f"  [Piper] echec ({e}), repli voix Windows.")
+            return None
+
+
+# --------------------------------------------------------------- fabrique
+
+_TTS = None
+
+
+def tts():
+    """Provider TTS courant (selon config.yaml mode: cloud|local)."""
+    global _TTS
+    if _TTS is None:
+        mode = (reglage("mode", "cloud") or "cloud").lower()
+        _TTS = PiperProvider() if mode == "local" else ElevenLabsProvider()
+        LOG.info("provider TTS : %s (mode %s)", _TTS.nom, mode)
+    return _TTS

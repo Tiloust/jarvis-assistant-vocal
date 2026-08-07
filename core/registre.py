@@ -58,10 +58,33 @@ def tous():
     return list(_REGISTRE.values())
 
 
-def schemas_api():
-    """Schemas au format Anthropic (name, description, input_schema)."""
-    return [{"name": o.nom, "description": o.description,
-             "input_schema": o.parametres} for o in _REGISTRE.values()]
+# Outils NON exposes au modele local (mode local) : soit ils exigent internet et/ou
+# de la vision (impossibles/peu fiables hors ligne), soit ils noieraient un petit
+# modele 7b. En mode local on garde un jeu d'outils reduit et fiable (domotique, PC,
+# minuteurs, memoire, meteo...). Ces memes outils s'auto-desactivent hors ligne.
+_NON_LOCAUX = {
+    "capture_screen", "faire_brief",
+    "lire_mails", "lire_mail", "preparer_mail", "envoyer_mail", "mettre_a_la_corbeille",
+    "get_events", "create_event", "delete_event", "get_deadlines",
+    "chercher_web",
+    "book_appointment", "confirmer_reservation",
+    "browser_open", "browser_current_page", "browser_tabs", "browser_close_tabs",
+    "browser_interact",
+    "call_with_message", "call_and_book", "cout_appels",
+    "instagram_resume", "rafraichir_instagram",
+    "get_mentions_summary", "get_channel_summary",
+}
+
+
+def schemas_api(local_seulement=False):
+    """Schemas au format Anthropic (name, description, input_schema).
+
+    local_seulement=True : ne renvoie que les outils utilisables par un modele
+    local (mode Ollama), en excluant les outils internet/vision (_NON_LOCAUX).
+    """
+    return [{"name": o.nom, "description": o.description, "input_schema": o.parametres}
+            for o in _REGISTRE.values()
+            if not (local_seulement and o.nom in _NON_LOCAUX)]
 
 
 def noms_lents():
