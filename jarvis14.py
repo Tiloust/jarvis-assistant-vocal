@@ -653,6 +653,7 @@ def repondre_en_ecoutant(historique, flux, reveil, whisper):
     base = None            # niveau moyen de l'echo de Jarvis (suivi en continu)
     tampon = []            # audio de TA parole par-dessus
     blocs_sur = 0
+    derniere_verif = 0.0
 
     while thread.is_alive():
         try:
@@ -685,13 +686,13 @@ def repondre_en_ecoutant(historique, flux, reveil, whisper):
                 tampon = []                # trop court : simple bruit, on oublie
             blocs_sur = 0
 
-        # Des que tu parles par-dessus assez longtemps (plus fort que l'echo de
-        # Jarvis), on COUPE tout de suite et on se remet a l'ecoute. On ne depend
-        # PLUS de la reconnaissance du mot : parler suffit a l'interrompre. La
-        # transcription sert juste a distinguer "tais-toi" (fin) de "attends" (relance).
-        if blocs_sur >= blocs_requis:
-            couper_parole()
-            interrompu = True
+        # On ne coupe QUE si on reconnait un mot d'arret ("attends", "stop"...)
+        # dans ce que tu dis par-dessus. Ainsi Jarvis ne peut jamais se couper
+        # lui-meme (sa propre voix n'est pas un mot d'arret) : pas de boucle.
+        maintenant = time.time()
+        if (blocs_sur >= blocs_requis
+                and maintenant - derniere_verif > DELAI_ENTRE_VERIFS):
+            derniere_verif = maintenant
             extrait = np.concatenate(tampon[-30:])
             tampon = []
             blocs_sur = 0
@@ -703,10 +704,14 @@ def repondre_en_ecoutant(historique, flux, reveil, whisper):
             if debug:
                 print(f"  [micro debug] niv={niv:.3f} base={base:.3f} "
                       f"seuil={seuil_sur:.3f} -> entendu={dit!r}")
-            relancer = (type_arret(dit) != "fin")   # par defaut : on se remet a t'ecouter
-            action = "Je t'ecoute" if relancer else "Je me tais"
-            print(f"  [micro] {action}" + (f" : {dit}" if dit else ""))
-            break
+            categorie = type_arret(dit) if dit else None
+            if categorie:
+                couper_parole()
+                interrompu = True
+                relancer = (categorie == "relance")
+                action = "Je t'ecoute" if relancer else "Compris"
+                print(f"  [micro] {action} : {dit}")
+                break
 
     thread.join(timeout=10)
     reveil.reset()

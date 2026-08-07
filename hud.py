@@ -196,6 +196,17 @@ class _Poignee(BaseHTTPRequestHandler):
         self.wfile.flush()
 
 
+class _Serveur(ThreadingHTTPServer):
+    """Serveur HUD silencieux sur les deconnexions clientes (onglet ferme/rechargé)."""
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        import sys
+        if isinstance(sys.exc_info()[1], (ConnectionError, OSError)):
+            return  # deconnexion normale : pas de traceback dans la console
+        super().handle_error(request, client_address)
+
+
 def demarrer(ouvrir=True):
     """Lance le serveur dans un thread daemon et ouvre le navigateur.
 
@@ -205,7 +216,7 @@ def demarrer(ouvrir=True):
     if _SERVEUR is not None:
         return _SERVEUR
 
-    _SERVEUR = ThreadingHTTPServer(("127.0.0.1", PORT), _Poignee)
+    _SERVEUR = _Serveur(("127.0.0.1", PORT), _Poignee)
     _SERVEUR.daemon_threads = True
 
     thread = threading.Thread(target=_SERVEUR.serve_forever, daemon=True)
