@@ -157,6 +157,8 @@ def bip(frequence=880, duree=0.12):
 
 _PROCESSUS_PAROLE = None
 _INTERRUPTION = threading.Event()
+_PARLE = threading.Event()   # vrai UNIQUEMENT pendant que Jarvis joue de l'audio :
+                             # c'est la seule fenetre ou on ecoute une interruption.
 
 
 def couper_parole():
@@ -195,10 +197,14 @@ def dire(texte):
         return
     from core.tts import tts
     resultat = tts().synthetiser(texte)
-    if resultat is not None:
-        _jouer_audio(*resultat)
-        return
-    _dire_sapi(texte)
+    _PARLE.set()          # a partir d'ici Jarvis parle : on peut l'interrompre
+    try:
+        if resultat is not None:
+            _jouer_audio(*resultat)
+        else:
+            _dire_sapi(texte)
+    finally:
+        _PARLE.clear()    # fin de la parole : plus d'interruption possible
 
 
 def _dire_sapi(texte):
@@ -662,6 +668,15 @@ def repondre_en_ecoutant(historique, flux, reveil, whisper):
             break
         bloc = bloc.flatten()
         _hud("niveau", _niv_hud(bloc))
+
+        # On ne surveille l'interruption QUE pendant que Jarvis parle vraiment.
+        # Pendant qu'il reflechit (appel LLM, outils), on ne coupe rien : la reponse
+        # ne peut donc pas etre "perdue" par une fausse detection avant d'etre dite.
+        if not _PARLE.is_set():
+            base = None
+            blocs_sur = 0
+            tampon = []
+            continue
 
         # voie 1 : le mot d'activation
         scores = reveil.predict((bloc * 32767).astype(np.int16))
