@@ -10,14 +10,12 @@ les reglages et secrets dans config.yaml (via core.config).
 Usage : uv run python jarvis14.py
 """
 
-import json
 import os
 import queue
 import re
 import subprocess
 import threading
 import time
-import urllib.request
 import wave
 from collections import deque
 from pathlib import Path
@@ -31,7 +29,6 @@ try:
 except Exception:
     pass
 
-import anthropic
 import numpy as np
 import openwakeword
 import sounddevice as sd
@@ -48,13 +45,9 @@ MICRO = config.reglage("audio.micro", 1)
 # None = sortie audio par defaut de Windows (suit l'enceinte/casque actif).
 HAUT_PARLEUR = config.reglage("audio.haut_parleur", None)
 
-MODELE_CLAUDE = config.reglage("anthropic.modele", "claude-haiku-4-5")
+# Le choix du modele LLM (Claude/Ollama) et de la voix (ElevenLabs/Piper) est gere
+# par les providers (core/llm.py, core/tts.py), selon config.yaml (mode: cloud|local).
 MODELE_WHISPER = config.reglage("whisper.modele", "medium")
-CLE_ANTHROPIC = config.reglage("anthropic.cle", "")
-
-ELEVENLABS_CLE = config.reglage("elevenlabs.cle", "")
-ELEVENLABS_VOIX = config.reglage("elevenlabs.voix", "")
-MODELE_ELEVEN = config.reglage("elevenlabs.modele", "eleven_flash_v2_5")
 
 TAUX = 16000
 BLOC = 1280
@@ -76,12 +69,6 @@ LOG = journal.obtenir()
 
 # Sentinel renvoye par repondre() quand une action attend une confirmation vocale.
 SENTINEL_CONFIRM = "\x00confirmation\x00"
-
-# Construction tolerante : sans cle, CLIENT reste None et l'assistant le signale.
-try:
-    CLIENT = anthropic.Anthropic(api_key=CLE_ANTHROPIC) if CLE_ANTHROPIC else None
-except Exception:
-    CLIENT = None
 
 # Regles de base (format vocal, outils). La personnalite (persona) est ajoutee
 # devant, et la memoire derriere, par _refaire_systeme.
@@ -849,7 +836,7 @@ def main():
                   "L'assistant ne pourra pas repondre.")
 
     _hud("demarrer")
-    _hud("config", MODELE_CLAUDE, f"whisper {MODELE_WHISPER}")
+    _hud("config", _fournisseur.nom, f"whisper {MODELE_WHISPER}")
 
     faits = memoire.charger()
     if faits:

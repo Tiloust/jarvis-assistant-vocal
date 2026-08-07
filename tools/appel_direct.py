@@ -19,7 +19,6 @@ mcp_expose=False. Voir docs/appels.md.
 import asyncio
 import audioop
 import base64
-import datetime as dt
 import json
 import logging
 import threading
@@ -288,7 +287,7 @@ async def _handler(ws):
 
 
 def _demarrer_serveur():
-    global _SERVEUR, _LOOP
+    global _SERVEUR
     if _SERVEUR and _SERVEUR.is_alive():
         return
     pret = threading.Event()
@@ -428,7 +427,6 @@ def call_and_book(numero: str, objectif: str, contraintes: str = "") -> str:
 
     # Journalise + resume
     transcript = "\n".join(f"{qui} : {txt}" for qui, txt in echanges)
-    from tools.appels import _journaliser
     _journaliser(e164, f"[V2] {objectif}", transcript or "(pas d'echange capte)", 0, 0.0)
 
     if not fini and not echanges:

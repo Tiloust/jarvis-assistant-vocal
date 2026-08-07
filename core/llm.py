@@ -178,7 +178,7 @@ class OllamaProvider(ProviderLLM):
                      "avec des arguments JSON valides ; sinon reponds simplement en texte.")
             try:
                 return self._parser(self._chat(messages, tools, nudge=nudge))
-            except Exception as e2:
+            except Exception:
                 LOG.exception("ollama: echec apres retry")
                 return Reponse("end", [Bloc("text", text=(
                     "Desole, le modele local n'a pas reussi a traiter la demande "

@@ -20,7 +20,6 @@ Tes infos perso (nom, tel, mail) viennent de config.yaml (utilisateur.*) ;
 jamais de mot de passe stocke en clair.
 """
 import base64
-import json
 import logging
 
 from core.config import reglage

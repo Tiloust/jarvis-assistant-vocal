@@ -142,7 +142,7 @@ presence:                      # detection de presence (ping de l'iPhone sur le 
   mode_retour: "retour"        # mode active a ton retour ("" pour desactiver)
 
 # modes: ambiances lumineuses. Presets integres : off, retour, film, stream.
-# Redefinis-les ou ajoute les tiens ici (chaque etape agit sur une piece Hue) :
+# Redefinis-les ou ajoute les tiens ici (voir scenes.example.yaml pour des exemples) :
 # modes:
 #   film:
 #     - {piece: "toutes", eteindre: true}
