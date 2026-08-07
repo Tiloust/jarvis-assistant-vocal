@@ -20,6 +20,14 @@ import logging
 import urllib.request
 from pathlib import Path
 
+# Magasin de certificats Windows (Malwarebytes intercepte le TLS : sans ca, l'appel
+# a l'API ElevenLabs echoue et Jarvis retombe sur la voix Windows).
+try:
+    import truststore
+    truststore.inject_into_ssl()
+except Exception:
+    pass
+
 from core.config import reglage
 
 LOG = logging.getLogger("jarvis")
@@ -74,7 +82,13 @@ class ElevenLabsProvider(ProviderTTS):
         except ImportError:
             return None
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{self._resoudre_voix()}"
-        corps = json.dumps({"text": texte, "model_id": self.modele}).encode("utf-8")
+        charge = {"text": texte, "model_id": self.modele}
+        # Flash/Turbo v2.5 acceptent language_code : on force le francais pour une
+        # bonne prononciation des accents (e accent, c cedille...) quelle que soit
+        # la voix (sinon la langue est auto-detectee et parfois lue en anglais).
+        if any(x in self.modele for x in ("flash", "turbo")):
+            charge["language_code"] = reglage("elevenlabs.langue", "fr")
+        corps = json.dumps(charge).encode("utf-8")
         requete = urllib.request.Request(url, data=corps, method="POST", headers={
             "xi-api-key": self.cle, "Content-Type": "application/json",
             "Accept": "audio/mpeg"})
