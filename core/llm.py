@@ -90,7 +90,7 @@ class OllamaProvider(ProviderLLM):
 
     def __init__(self):
         self.hote = reglage("ollama.hote", "http://localhost:11434").rstrip("/")
-        self.modele = reglage("ollama.modele", "qwen2.5:7b-instruct")
+        self.modele = reglage("ollama.modele", "qwen3.5:4b")
 
     def disponible(self):
         try:
@@ -145,9 +145,13 @@ class OllamaProvider(ProviderLLM):
         import requests
         if nudge:
             messages = messages + [{"role": "user", "content": nudge}]
+        # think=false : desactive le "raisonnement" natif (qwen3.5, etc.). Sinon le
+        # modele est tres lent et rend parfois ses appels d'outils en texte au lieu
+        # de les executer. Un modele sans thinking ignore ce parametre.
         r = requests.post(f"{self.hote}/api/chat", timeout=120, json={
             "model": self.modele, "messages": messages, "tools": tools,
-            "stream": False, "options": {"temperature": 0.3}})
+            "stream": False, "think": bool(reglage("ollama.think", False)),
+            "options": {"temperature": 0.3}})
         r.raise_for_status()
         return r.json()
 

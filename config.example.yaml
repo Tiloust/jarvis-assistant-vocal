@@ -5,7 +5,12 @@ mode: cloud                    # cloud = Claude + ElevenLabs ; local = Ollama + 
 
 ollama:                        # mode local : modele de langage local (http://localhost:11434)
   hote: "http://localhost:11434"
-  modele: "qwen2.5:7b"         # doit gerer le function calling (qwen2.5:7b, llama3.1:8b...)
+  modele: "qwen3.5:4b"         # famille qwen3.5 (teste, bon en function calling + vision).
+                               # ~6-8 Go VRAM: 4b ; plus de VRAM: 9b/27b ; peu: 2b.
+                               # Voir ollama.com/library ; "python scripts/doctor.py" conseille selon ta VRAM.
+                               # Ollama recent requis (le tool-calling qwen3.5 buggait sur d'anciennes versions).
+  think: false                 # false = pas de "raisonnement" natif : indispensable pour la latence et les
+                               # appels d'outils (sinon tres lent / rendus en texte). Laisse false.
 
 voix_locale: piper             # mode local : "piper" (recommande FR) ou "kokoro"
 

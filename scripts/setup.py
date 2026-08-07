@@ -140,7 +140,7 @@ def config_local(conf):
     if not shutil.which("ollama"):
         print("Ollama n'est pas installe.\n  Installe-le : https://ollama.com/download")
         input("  Appuie sur Entree une fois Ollama installe...")
-    modele = demander("Modele Ollama a utiliser", "qwen2.5:7b")
+    modele = demander("Modele Ollama a utiliser", "qwen3.5:4b")
     conf.setdefault("ollama", {})["modele"] = modele
     if shutil.which("ollama") and oui(f"Telecharger le modele '{modele}' maintenant ?", True):
         subprocess.run(["ollama", "pull", modele], check=False)
@@ -162,7 +162,7 @@ def detecter_materiel():
         vram = pynvml.nvmlDeviceGetMemoryInfo(h).total / (1024 ** 3)
         print(f"  GPU : {nom} — {vram:.0f} Go VRAM")
         if vram < 6:
-            print("  (!) <6 Go : en local, prefere qwen2.5:3b, ou reste en cloud.")
+            print("  (!) <6 Go : en local, prefere qwen3.5:2b, ou reste en cloud.")
         pynvml.nvmlShutdown()
     except Exception:
         print("  Pas de GPU NVIDIA detecte : tout marche en CPU (Whisper plus lent).")

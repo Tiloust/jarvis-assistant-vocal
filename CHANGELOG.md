@@ -17,7 +17,7 @@ modulaire, deux modes (cloud / local hors ligne).
 - Confirmation vocale des actions irréversibles ; interruption « attends/stop »
   (barge-in anti-écho) ; accusé de réception immédiat pour les outils lents.
 - Abstraction des providers (mode `cloud` | `local`) :
-  - LLM : **Claude** (Anthropic) ou **Ollama** (`qwen2.5:7b`…), même interface.
+  - LLM : **Claude** (Anthropic) ou **Ollama** (`qwen3.5:4b`…), même interface.
   - TTS : **ElevenLabs** ou, en local, **Piper** / **Kokoro** (repli voix Windows).
   - STT : faster-whisper (local dans les deux modes, GPU si dispo).
 

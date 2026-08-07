@@ -111,11 +111,24 @@ def v_materiel():
             nom = nom.decode() if isinstance(nom, bytes) else nom
             vram = pynvml.nvmlDeviceGetMemoryInfo(h).total / (1024 ** 3)
             ok(f"GPU : {nom} — {vram:.0f} Go VRAM")
-            if vram < 6:
-                warn("moins de 6 Go : mode local 7b serre ; prefere qwen2.5:3b ou le cloud.")
+            print(f"{INFO} modele local conseille : {_reco_modele(vram)}")
         pynvml.nvmlShutdown()
     except Exception:
+        print(f"{INFO} modele local conseille : {_reco_modele(None)}")
         warn("aucun GPU NVIDIA detecte", "ca marche en CPU, mais Whisper sera plus lent.")
+
+
+def _reco_modele(vram):
+    """Suggestion de modele Ollama selon la VRAM (a jour : voir ollama.com/library)."""
+    if vram is None:
+        return "sans GPU -> petit modele (qwen3.5:2b) ou mode cloud"
+    if vram >= 16:
+        return "qwen3.5:27b (ou 9b), large marge avec Whisper"
+    if vram >= 10:
+        return "qwen3.5:9b"
+    if vram >= 6:
+        return "qwen3.5:4b (teste : rapide et fiable ; le 9b passe mais plus lent)"
+    return "qwen3.5:2b (tool-calling limite) ou mode cloud"
 
 
 def v_llm():
@@ -123,7 +136,7 @@ def v_llm():
     mode = reglage("mode", "cloud")
     if mode == "local":
         hote = reglage("ollama.hote", "http://localhost:11434")
-        modele = reglage("ollama.modele", "qwen2.5:7b")
+        modele = reglage("ollama.modele", "qwen3.5:4b")
         try:
             import requests
             tags = requests.get(f"{hote.rstrip('/')}/api/tags", timeout=4).json()

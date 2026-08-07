@@ -64,7 +64,7 @@ flowchart LR
 
 | | **cloud** (défaut) | **local** (hors ligne) |
 |---|---|---|
-| LLM | Claude (API Anthropic) | Ollama (`qwen2.5:7b`…) |
+| LLM | Claude (API Anthropic) | Ollama (`qwen3.5:4b`…) |
 | Voix | ElevenLabs | Piper (français) |
 | Transcription | faster-whisper (local) | faster-whisper (local) |
 | Qualité | maximale | bonne (selon le modèle) |
@@ -76,9 +76,10 @@ Bascule en une ligne : `mode: cloud` ou `mode: local`. Voir [docs/local.md](docs
 pour le bilan honnête de fiabilité (un modèle 7B gère bien les outils domotique/PC ;
 les **features à vision comme le navigateur & les réservations restent cloud recommandé**).
 
-**Matériel local (honnête) :** Whisper `medium` ≈ 2–3 Go VRAM, `qwen2.5:7b` (Q4) ≈ 5 Go
-VRAM. Une carte **8 Go** (RTX 2070/3060) fait tourner les deux — juste mais jouable.
-Piper est temps réel sur CPU.
+**Matériel local (honnête) :** Whisper `medium` ≈ 2–3 Go VRAM, `qwen3.5:4b` (Q4) ≈ 3 Go —
+une carte **6 Go** (RTX 2060/3060) fait tourner les deux confortablement. Le `qwen3.5:9b`
+(~6 Go) demande plus de marge. Piper est temps réel sur CPU. `python scripts/doctor.py`
+conseille le modèle selon ta VRAM.
 
 ## 🚀 Démarrage rapide
 
@@ -152,7 +153,7 @@ La confiance est intégrée, pas rajoutée :
 - [ ] Contrôle des lampes vidéo Godox (aujourd'hui Hue seulement)
 - [ ] Outils notes & rappels
 - [ ] TTS en streaming phrase par phrase (voir [docs/latency.md](docs/latency.md))
-- [ ] Modèle de vision local pour la boucle navigateur (aujourd'hui cloud seulement)
+- [ ] Boucle navigateur en 100 % local : la vision de `qwen3.5` lit déjà le texte des boutons (testé) — reste à valider le pilotage complet
 - [ ] Rafraîchissement auto des tokens Instagram entre redémarrages (partiel aujourd'hui)
 
 ## 🤝 Contribuer

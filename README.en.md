@@ -63,7 +63,7 @@ flowchart LR
 
 | | **cloud** (default) | **local** (offline) |
 |---|---|---|
-| LLM | Claude (Anthropic API) | Ollama (`qwen2.5:7b`…) |
+| LLM | Claude (Anthropic API) | Ollama (`qwen3.5:4b`…) |
 | Voice | ElevenLabs | Piper (French) |
 | Transcription | faster-whisper (local) | faster-whisper (local) |
 | Quality | highest | good (model-dependent) |
@@ -75,8 +75,9 @@ Switch with a single line: `mode: cloud` or `mode: local`. See [docs/local.md](d
 for the honest reliability breakdown (a 7B model handles the core home/PC tools well;
 **vision-based features like the browser & web reservations stay cloud-recommended**).
 
-**Local hardware (honest):** Whisper `medium` ≈ 2–3 GB VRAM, `qwen2.5:7b` (Q4) ≈ 5 GB
-VRAM. An **8 GB** GPU (RTX 2070/3060) runs both — tight but workable. Piper is real-time on CPU.
+**Local hardware (honest):** Whisper `medium` ≈ 2–3 GB VRAM, `qwen3.5:4b` (Q4) ≈ 3 GB — a
+**6 GB** GPU (RTX 2060/3060) runs both comfortably; `qwen3.5:9b` (~6 GB) needs more headroom.
+`python scripts/doctor.py` suggests a model for your VRAM. Piper is real-time on CPU.
 
 ## 🚀 Quick start
 
@@ -150,7 +151,7 @@ Trust is built in, not bolted on:
 - [ ] Godox video-light control (currently Hue only)
 - [ ] Notes & reminders tools
 - [ ] Sentence-by-sentence streaming TTS (see [docs/latency.md](docs/latency.md))
-- [ ] Local vision model for the browser loop (currently cloud-only)
+- [ ] 100% local browser loop: `qwen3.5` vision already reads button text (tested) — full page-driving still to validate
 - [ ] Automatic Instagram token refresh across restarts (partial today)
 
 ## 🤝 Contributing

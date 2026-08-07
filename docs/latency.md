@@ -121,7 +121,7 @@ dire(reponse);                       LOG.info("TTS 1er son %.2fs", time.time()-t
 ```
 
 Cible : `TTS 1er son` < **1,5 s**. Si c'est le LLM qui domine → réponses plus courtes
-ou modèle plus rapide (Haiku, ou `qwen2.5:7b` en local). Si c'est le TTS → streaming
+ou modèle plus rapide (Haiku, ou `qwen3.5:4b` en local). Si c'est le TTS → streaming
 (section 3). Si c'est le STT → `faster-whisper` sur GPU, `beam_size=1`.
 
 ## Récapitulatif des priorités

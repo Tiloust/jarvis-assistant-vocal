@@ -10,7 +10,7 @@ Exemple :
 
     import hud
     hud.demarrer()
-    hud.config("qwen2.5:7b", "whisper medium")
+    hud.config("qwen3.5:4b", "whisper medium")
     hud.etat("ecoute")
     hud.niveau(0.6)
     hud.dire_vous("allume la lumiere de la chambre")
@@ -238,7 +238,7 @@ def _scenario():
     """Joue une conversation type en boucle pour tester le rendu."""
     import math
 
-    config("qwen2.5:7b", "whisper medium")
+    config("qwen3.5:4b", "whisper medium")
 
     tours = [
         ("allume la lumiere de la chambre",

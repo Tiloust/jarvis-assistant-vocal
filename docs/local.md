@@ -8,7 +8,7 @@ mode: cloud    # cloud (Claude + ElevenLabs) | local (Ollama + Piper, 100% offli
 
 | | **cloud** (defaut) | **local** |
 |---|---|---|
-| LLM | Claude (API Anthropic) | Ollama (`qwen2.5:7b`...) |
+| LLM | Claude (API Anthropic) | Ollama (`qwen3.5:4b`...) |
 | Voix (TTS) | ElevenLabs | Piper (FR) |
 | Transcription (STT) | faster-whisper (local) | faster-whisper (local) |
 | Qualite | maximale | bonne (dépend du modèle) |
@@ -20,11 +20,14 @@ Le **STT est déjà local dans les deux modes** (faster-whisper, GPU si dispo).
 
 ## Passer en mode local
 
-1. **Ollama** : installe [ollama.com](https://ollama.com), puis récupère un modèle
-   qui gère bien le *function calling* :
+1. **Ollama** (version **récente** : le tool-calling de qwen3.5 buggait sur d'anciennes
+   versions) : installe [ollama.com](https://ollama.com), puis récupère un modèle qui
+   gère bien le *function calling* :
    ```bash
-   ollama pull qwen2.5:7b        # recommandé (ou llama3.1:8b)
+   ollama pull qwen3.5:4b       # ~6-8 Go VRAM (teste). Plus de VRAM: 9b/27b. Peu: 2b.
    ```
+   Voir [ollama.com/library](https://ollama.com/library) pour les derniers modèles ;
+   `python scripts/doctor.py` en conseille un selon ta VRAM.
 2. **Voix Piper** (français) : télécharge une voix depuis
    [Piper FR](https://huggingface.co/rhasspy/piper-voices/tree/main/fr/fr_FR)
    (ex. `fr_FR-siwis-medium`), place le `.onnx` **et** son `.json` dans `voix/`.
@@ -36,16 +39,19 @@ n'est pas configuré, Jarvis retombe sur la voix Windows SAPI.)
 
 ## Fiabilité réelle du mode local (honnête)
 
-Testé avec `qwen2.5:7b` sur cette base de code :
+Testé sur cette base de code avec `qwen3.5:4b`/`9b` et `qwen2.5:7b` :
 
-- ✅ **Les outils du quotidien marchent bien et vite** (1,6–5 s par tour) : lumières
-  Hue, ambiances/scènes, OBS, minuteurs, heure, météo, mémoire, volume/média...
-- ⚠️ **Un petit modèle 7b se noie avec trop d'outils.** Jarvis n'expose donc au
-  modèle local qu'un **jeu réduit (24 outils sur 50)**, ciblé et fiable. Avec les 50
-  outils, `qwen2.5:7b` devenait lent (>60 s) et ratait ses appels.
-- ❌ **Vision impossible en local.** Les modèles locaux ci-dessus n'ont pas de
-  vision : tout ce qui repose sur des captures d'écran (assistance navigateur,
-  réservation web pilotée, `capture_screen`) reste **cloud**.
+- ✅ **Les outils du quotidien marchent bien et vite** (2–4 s par tour avec `qwen3.5:4b`) :
+  lumières Hue, ambiances/scènes, OBS, minuteurs, heure, météo, mémoire, volume/média...
+- ⚙️ **`think` doit être désactivé** (`ollama.think: false`, défaut). Le « raisonnement »
+  natif de qwen3.5 rend le modèle très lent et fait parfois rendre les appels d'outils
+  en **texte** au lieu de les exécuter. Jarvis le désactive automatiquement.
+- ⚠️ **Un petit modèle se noie avec trop d'outils.** Jarvis n'expose donc au modèle
+  local qu'un **jeu réduit (24 outils sur 50)**, ciblé et fiable. Avec les 50 outils,
+  même qwen3.5:4b devenait lent (>30 s) et ratait/textualisait ses appels.
+- 👁️ **Vision** : qwen3.5 a la vision et lit déjà le texte des boutons (testé). La
+  boucle navigateur/réservation en 100 % local devient donc **plausible** (roadmap) ;
+  aujourd'hui elle reste **cloud recommandé** (pilotage complet non encore validé).
 
 ### Récupération sur échec d'appel d'outil
 
@@ -77,10 +83,11 @@ clé `anthropic.cle`.
 ## Matériel recommandé (mode local)
 
 - **faster-whisper** `medium` : ~2–3 Go de VRAM (GPU) ; repli CPU possible mais lent.
-- **qwen2.5:7b** (quantifié Q4) : ~5 Go de VRAM.
-- Une carte **8 Go de VRAM** (ex. RTX 2070/3060) fait tourner les deux, c'est juste
-  mais jouable. Sinon, `qwen2.5:3b` est plus léger (moins fiable sur les outils).
+- **qwen3.5:4b** (quantifié Q4) : ~3 Go de VRAM.
+- Une carte **6 Go de VRAM** (ex. RTX 2060/3060) fait tourner les deux confortablement.
+  Plus de VRAM -> `qwen3.5:9b`/`27b` ; moins -> `qwen3.5:2b` (moins fiable sur les outils).
 - Piper : négligeable, temps réel sur CPU.
+- `python scripts/doctor.py` détecte ta VRAM et conseille le modèle adapté.
 
 ## Kokoro vs Piper (pourquoi Piper)
 
