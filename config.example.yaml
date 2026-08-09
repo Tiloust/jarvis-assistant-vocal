@@ -1,7 +1,7 @@
 # Configuration de Jarvis — copie ce fichier en config.yaml et mets tes valeurs.
 # config.yaml n'est PAS versionne (voir .gitignore) : tes secrets restent chez toi.
 
-mode: cloud                    # cloud = Claude + ElevenLabs ; local = Ollama + Piper (100% offline)
+mode: cloud                    # cloud = Claude + ElevenLabs ; gemini = Google Gemini + ElevenLabs ; local = Ollama + Piper (100% offline)
 
 ollama:                        # mode local : modele de langage local (http://localhost:11434)
   hote: "http://localhost:11434"
@@ -25,6 +25,10 @@ kokoro:                        # TTS local alternatif (voix FR unique ; uv add k
 anthropic:
   cle: "sk-ant-..."            # https://console.anthropic.com/ , section API keys
   modele: "claude-haiku-4-5"
+
+gemini:                        # mode: gemini — alternative a Claude, moins chere a l'usage
+  cle: ""                      # https://aistudio.google.com/apikey , cree une cle gratuite
+  modele: "gemini-2.5-flash"   # bon compromis rapidite/qualite/prix ; "gemini-2.5-pro" pour plus de qualite
 
 elevenlabs:                    # facultatif ; sans cle, Jarvis garde la voix Windows
   cle: ""                      # https://elevenlabs.io , profil -> API key (commence par sk_)

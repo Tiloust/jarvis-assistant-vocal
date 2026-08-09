@@ -1,16 +1,17 @@
 """Abstraction du modele de langage : le reste du code ignore quel provider tourne.
 
-Deux implementations, choisies par config.yaml (mode: cloud | local) :
+Trois implementations, choisies par config.yaml (mode: cloud | local | gemini) :
   - ClaudeProvider  : API Anthropic (cloud, defaut).
   - OllamaProvider  : Ollama en local (http://localhost:11434), 100% offline.
+  - GeminiProvider  : API Google Gemini (cloud, alternative a Claude).
 
-Les deux exposent la meme methode `repondre(systeme, historique, outils)` et
+Les trois exposent la meme methode `repondre(systeme, historique, outils)` et
 renvoient un objet a la forme d'une reponse Anthropic (.stop_reason + .content,
 chaque bloc ayant .type / .text / .name / .input / .id). Ainsi la boucle de
 dialogue de jarvis14 ne change pas selon le provider.
 
-L'historique reste au format "content blocks" d'Anthropic ; OllamaProvider le
-traduit vers/depuis le format d'Ollama de facon interne.
+L'historique reste au format "content blocks" d'Anthropic ; OllamaProvider et
+GeminiProvider le traduisent vers/depuis leur propre format de facon interne.
 """
 import json
 import logging
@@ -83,6 +84,115 @@ class ClaudeProvider(ProviderLLM):
         )
 
 
+# --------------------------------------------------------------- Gemini (cloud)
+
+class GeminiProvider(ProviderLLM):
+    """Provider Google Gemini (SDK google-genai). Alternative a Claude, meme role.
+
+    Necessite : uv add google-genai
+    Config : gemini.cle (cle API, https://aistudio.google.com/apikey) et
+             gemini.modele (defaut "gemini-2.5-flash").
+
+    Limite connue : la vision (captures d'ecran) n'est pas traduite ici, comme
+    pour OllamaProvider. Les outils texte/fonction sont, eux, pleinement geres.
+    """
+    nom = "Gemini"
+
+    def __init__(self):
+        from google import genai
+        cle = reglage("gemini.cle", "")
+        self.modele = reglage("gemini.modele", "gemini-2.5-flash")
+        self.client = genai.Client(api_key=cle) if cle else None
+
+    def disponible(self):
+        return self.client is not None
+
+    # -- traduction historique Anthropic -> contents Gemini --
+    def _traduire(self, historique):
+        from google.genai import types
+        contents = []
+        for m in historique:
+            role, contenu = m.get("role"), m.get("content")
+            role_gemini = "model" if role == "assistant" else "user"
+            parts = []
+            if isinstance(contenu, str):
+                parts.append(types.Part.from_text(text=contenu))
+            else:
+                for item in contenu or []:
+                    if isinstance(item, dict):
+                        if item.get("type") == "tool_result":
+                            c = item.get("content")
+                            if isinstance(c, list):  # bloc image
+                                c = "[image capturee - la vision n'est pas traduite pour Gemini]"
+                            parts.append(types.Part.from_function_response(
+                                name=item.get("tool_use_id", "outil"),
+                                response={"resultat": str(c)}))
+                        elif item.get("type") == "image":
+                            parts.append(types.Part.from_text(
+                                text="[image - vision non traduite pour Gemini]"))
+                    else:  # bloc Anthropic (objet Bloc ou reponse native)
+                        t = getattr(item, "type", None)
+                        if t == "text" and getattr(item, "text", None):
+                            parts.append(types.Part.from_text(text=item.text))
+                        elif t == "tool_use":
+                            parts.append(types.Part.from_function_call(
+                                name=item.name, args=item.input or {}))
+            if parts:
+                contents.append(types.Content(role=role_gemini, parts=parts))
+        return contents
+
+    def _outils(self, outils):
+        from google.genai import types
+        if not outils:
+            return None
+        declarations = [
+            types.FunctionDeclaration(
+                name=o["name"],
+                description=o.get("description", ""),
+                parameters=o.get("input_schema", {"type": "object", "properties": {}}),
+            )
+            for o in outils
+        ]
+        return [types.Tool(function_declarations=declarations)]
+
+    def repondre(self, systeme, historique, outils):
+        from google.genai import types
+        contents = self._traduire(historique)
+        tools = self._outils(outils)
+        config = types.GenerateContentConfig(
+            system_instruction=systeme,
+            tools=tools,
+            max_output_tokens=1024,
+        )
+        try:
+            rep = self.client.models.generate_content(
+                model=self.modele, contents=contents, config=config)
+        except Exception:
+            LOG.exception("gemini: echec de l'appel API")
+            return Reponse("end", [Bloc("text", text=(
+                "Desole, l'appel a Gemini a echoue. Verifie ta cle API et ta "
+                "connexion, ou repasse en mode cloud (Claude) / local (Ollama)."))])
+
+        blocs = []
+        try:
+            candidat = rep.candidates[0]
+            for part in candidat.content.parts:
+                if getattr(part, "text", None):
+                    blocs.append(Bloc("text", text=part.text))
+                fc = getattr(part, "function_call", None)
+                if fc:
+                    blocs.append(Bloc("tool_use", id=f"call_{fc.name}",
+                                       name=fc.name,
+                                       input=dict(fc.args) if fc.args else {}))
+        except Exception:
+            LOG.exception("gemini: erreur de parsing de la reponse")
+            if not blocs:
+                blocs = [Bloc("text", text="Desole, reponse Gemini illisible.")]
+
+        stop = "tool_use" if any(b.type == "tool_use" for b in blocs) else "end"
+        return Reponse(stop, blocs)
+
+
 # --------------------------------------------------------------- Ollama (local)
 
 class OllamaProvider(ProviderLLM):
@@ -115,11 +225,11 @@ class OllamaProvider(ProviderLLM):
                         if item.get("type") == "tool_result":
                             c = item.get("content")
                             if isinstance(c, list):   # bloc image
-                                c = "[image capturee — la vision n'est pas disponible en mode local]"
+                                c = "[image capturee - la vision n'est pas disponible en mode local]"
                             messages.append({"role": "tool", "content": str(c)})
                         elif item.get("type") == "image":
                             messages.append({"role": "user",
-                                             "content": "[image — vision indisponible en local]"})
+                                             "content": "[image - vision indisponible en local]"})
             else:  # assistant
                 if isinstance(contenu, str):
                     messages.append({"role": "assistant", "content": contenu})
@@ -195,10 +305,15 @@ _LLM = None
 
 
 def llm():
-    """Provider LLM courant (selon config.yaml mode: cloud|local)."""
+    """Provider LLM courant (selon config.yaml mode: cloud|local|gemini)."""
     global _LLM
     if _LLM is None:
         mode = (reglage("mode", "cloud") or "cloud").lower()
-        _LLM = OllamaProvider() if mode == "local" else ClaudeProvider()
+        if mode == "local":
+            _LLM = OllamaProvider()
+        elif mode == "gemini":
+            _LLM = GeminiProvider()
+        else:
+            _LLM = ClaudeProvider()
         LOG.info("provider LLM : %s (mode %s)", _LLM.nom, mode)
     return _LLM
