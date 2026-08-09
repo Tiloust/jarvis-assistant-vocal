@@ -89,7 +89,7 @@ class ClaudeProvider(ProviderLLM):
 class GeminiProvider(ProviderLLM):
     """Provider Google Gemini (SDK google-genai). Alternative a Claude, meme role.
 
-    Necessite : uv add google-genai
+    Necessite : uv add google-genai (ou uv pip install google-genai)
     Config : gemini.cle (cle API, https://aistudio.google.com/apikey) et
              gemini.modele (defaut "gemini-2.5-flash").
 
@@ -175,19 +175,32 @@ class GeminiProvider(ProviderLLM):
 
         blocs = []
         try:
-            candidat = rep.candidates[0]
-            for part in candidat.content.parts:
-                if getattr(part, "text", None):
-                    blocs.append(Bloc("text", text=part.text))
-                fc = getattr(part, "function_call", None)
-                if fc:
-                    blocs.append(Bloc("tool_use", id=f"call_{fc.name}",
-                                       name=fc.name,
-                                       input=dict(fc.args) if fc.args else {}))
+            # .text et .function_calls sont des raccourcis sûrs du SDK : ils ne
+            # levent pas d'exception meme si la reponse ne contient QUE du texte
+            # ou QUE des appels d'outils (contrairement a un acces manuel a
+            # .candidates[0].content.parts qui peut etre vide/None selon le cas).
+            texte = getattr(rep, "text", None)
+            if texte:
+                blocs.append(Bloc("text", text=texte))
+            for fc in (getattr(rep, "function_calls", None) or []):
+                blocs.append(Bloc("tool_use", id=f"call_{fc.name}",
+                                   name=fc.name,
+                                   input=dict(fc.args) if fc.args else {}))
         except Exception:
             LOG.exception("gemini: erreur de parsing de la reponse")
-            if not blocs:
-                blocs = [Bloc("text", text="Desole, reponse Gemini illisible.")]
+
+        if not blocs:
+            # Reponse vide (bloquee par la moderation, coupee, etc.) : on essaie
+            # de recuperer une raison lisible plutot que de planter en silence.
+            raison = None
+            try:
+                raison = rep.candidates[0].finish_reason
+            except Exception:
+                pass
+            blocs = [Bloc("text", text=(
+                f"Desole, Gemini n'a rien renvoye d'utilisable (raison : {raison})."
+                if raison else
+                "Desole, Gemini n'a rien renvoye d'utilisable. Reessaie ta demande."))]
 
         stop = "tool_use" if any(b.type == "tool_use" for b in blocs) else "end"
         return Reponse(stop, blocs)
