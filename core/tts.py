@@ -125,6 +125,21 @@ class PiperProvider(ProviderTTS):
         c = self._chemin()
         return bool(c and c.exists())
 
+    def _octets_audio(self, texte):
+        """Genere l'audio brut (PCM 16 bits) en gerant les deux versions de l'API
+        piper-tts :
+          - piper-tts >= 1.3 ("piper1-gpl") : voice.synthesize(texte) renvoie un
+            iterateur d'AudioChunk, chacun avec .audio_int16_bytes.
+          - piper-tts < 1.3 (ancien projet rhasspy/piper) : voice.synthesize_stream_raw(texte)
+            renvoie directement un iterateur de bytes bruts.
+        On detecte la methode disponible pour rester compatible quelle que soit
+        la version installee, sans planter si l'API change encore.
+        """
+        if hasattr(self._voix, "synthesize_stream_raw"):
+            return b"".join(self._voix.synthesize_stream_raw(texte))
+        morceaux = self._voix.synthesize(texte)
+        return b"".join(getattr(c, "audio_int16_bytes", c) for c in morceaux)
+
     def synthetiser(self, texte):
         try:
             import numpy as np
@@ -139,7 +154,7 @@ class PiperProvider(ProviderTTS):
         try:
             if self._voix is None:
                 self._voix = PiperVoice.load(str(chemin))
-            brut = b"".join(self._voix.synthesize_stream_raw(texte))
+            brut = self._octets_audio(texte)
             return np.frombuffer(brut, dtype=np.int16), self._voix.config.sample_rate
         except Exception as e:
             print(f"  [Piper] echec ({e}), repli voix Windows.")

@@ -2,7 +2,8 @@
 
 Trois implementations, choisies par config.yaml (mode: cloud | local | gemini) :
   - ClaudeProvider  : API Anthropic (cloud, defaut).
-  - OllamaProvider  : Ollama en local (http://localhost:11434), 100% offline.
+  - OllamaProvider  : Ollama en local (http://localhost:11434) OU distant via un
+                       tunnel (ex: ngrok, Kaggle) si config.yaml y pointe.
   - GeminiProvider  : API Google Gemini (cloud, alternative a Claude).
 
 Les trois exposent la meme methode `repondre(systeme, historique, outils)` et
@@ -27,6 +28,14 @@ except Exception:
 from core.config import reglage
 
 LOG = logging.getLogger("jarvis")
+
+# Quand ollama.hote pointe vers un tunnel ngrok gratuit (ex: Kaggle expose via
+# ngrok), ngrok intercale une page HTML d'avertissement anti-phishing avant de
+# laisser passer la vraie requete. Sans ce header, Jarvis recoit du HTML a la
+# place du JSON d'Ollama et le parsing echoue ("reponse illisible"/timeout).
+# Ce header est ignore sans effet si l'hote n'est pas derriere ngrok (localhost
+# direct), donc on peut toujours l'envoyer sans risque.
+_ENTETES_HTTP = {"ngrok-skip-browser-warning": "true"}
 
 
 class Bloc:
@@ -175,7 +184,7 @@ class GeminiProvider(ProviderLLM):
 
         blocs = []
         try:
-            # .text et .function_calls sont des raccourcis sûrs du SDK : ils ne
+            # .text et .function_calls sont des raccourcis surs du SDK : ils ne
             # levent pas d'exception meme si la reponse ne contient QUE du texte
             # ou QUE des appels d'outils (contrairement a un acces manuel a
             # .candidates[0].content.parts qui peut etre vide/None selon le cas).
@@ -206,7 +215,7 @@ class GeminiProvider(ProviderLLM):
         return Reponse(stop, blocs)
 
 
-# --------------------------------------------------------------- Ollama (local)
+# --------------------------------------------------------------- Ollama (local ou distant)
 
 class OllamaProvider(ProviderLLM):
     nom = "Ollama"
@@ -218,7 +227,7 @@ class OllamaProvider(ProviderLLM):
     def disponible(self):
         try:
             import requests
-            requests.get(f"{self.hote}/api/version", timeout=3)
+            requests.get(f"{self.hote}/api/version", timeout=6, headers=_ENTETES_HTTP)
             return True
         except Exception:
             return False
@@ -271,7 +280,9 @@ class OllamaProvider(ProviderLLM):
         # think=false : desactive le "raisonnement" natif (qwen3.5, etc.). Sinon le
         # modele est tres lent et rend parfois ses appels d'outils en texte au lieu
         # de les executer. Un modele sans thinking ignore ce parametre.
-        r = requests.post(f"{self.hote}/api/chat", timeout=120, json={
+        # timeout releve a 180s : un hote distant (ex: Kaggle via ngrok, modele
+        # 20B+) peut mettre plus de temps que localhost a repondre.
+        r = requests.post(f"{self.hote}/api/chat", timeout=180, headers=_ENTETES_HTTP, json={
             "model": self.modele, "messages": messages, "tools": tools,
             "stream": False, "think": bool(reglage("ollama.think", False)),
             "options": {"temperature": 0.3}})
